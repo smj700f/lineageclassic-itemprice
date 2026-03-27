@@ -7,186 +7,185 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jschardet/3.0.0/jschardet.min.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f4f7f6; }
-        h1 { text-align: center; color: #2c3e50; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        body { font-family: "Microsoft JhengHei", -apple-system, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px; background-color: #f0f2f5; }
+        h1 { text-align: center; color: #1a73e8; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .hidden { display: none; }
         
-        /* 搜尋樣式 */
-        .search-box { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 16px; margin-bottom: 10px; }
-        .list-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; max-height: 400px; overflow-y: auto; border: 1px solid #eee; padding: 10px; }
-        .item-btn { padding: 8px; background: #e9ecef; border: none; border-radius: 4px; cursor: pointer; text-align: center; font-size: 14px; transition: 0.2s; }
-        .item-btn:hover { background: #dee2e6; color: #007bff; }
+        /* 搜尋框 */
+        .search-box { width: 100%; padding: 15px; border: 2px solid #dfe1e5; border-radius: 8px; font-size: 16px; margin-bottom: 15px; outline: none; transition: border 0.3s; }
+        .search-box:focus { border-color: #1a73e8; }
 
-        /* 結果表格樣式 */
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
-        th, td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
-        th { background-color: #007bff; color: white; cursor: pointer; }
-        tr:nth-child(even) { background-color: #f8f9fa; }
-        .price-text { font-weight: bold; color: #d9534f; }
-        .back-btn { display: inline-block; margin-bottom: 15px; padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        
-        .loading { text-align: center; color: #666; }
+        /* 道具按鈕列表 */
+        .list-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; max-height: 500px; overflow-y: auto; padding: 10px; background: #fafafa; border-radius: 8px; }
+        .item-btn { padding: 10px 5px; background: #fff; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; text-align: center; font-size: 14px; transition: all 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .item-btn:hover { background: #1a73e8; color: white; border-color: #1a73e8; transform: translateY(-2px); }
+
+        /* 表格樣式 */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ededed; padding: 12px; text-align: left; }
+        th { background-color: #f8f9fa; color: #5f6368; font-weight: bold; }
+        .price-val { font-weight: bold; color: #d93025; font-size: 1.1em; }
+        .npc-name { color: #188038; font-weight: 500; }
+
+        .back-btn { padding: 10px 20px; background: #5f6368; color: white; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 15px; font-size: 16px; }
+        .back-btn:hover { background: #3c4043; }
+        .loading-status { text-align: center; padding: 40px; font-size: 18px; color: #666; }
     </style>
 </head>
 <body>
 
     <h1>道具價格查詢系統</h1>
 
-    <div id="loading" class="loading">正在讀取數據...</div>
+    <div id="status-msg" class="loading-status">正在讀取 item_price.csv...</div>
 
     <div id="main-ui" class="hidden">
         <div class="card">
             <h3>方法一：關鍵字搜尋</h3>
-            <input type="text" id="keyword-search" class="search-box" placeholder="輸入道具名稱關鍵字...">
-            <div id="search-results-list" class="list-container hidden"></div>
+            <input type="text" id="keyword-input" class="search-box" placeholder="請輸入道具名稱關鍵字（例如：魔法書）...">
+            <div id="search-list" class="list-container hidden"></div>
         </div>
 
-        <div class="card" id="all-items-section">
+        <div class="card">
             <h3>方法二：瀏覽所有道具</h3>
-            <div id="all-items-list" class="list-container"></div>
+            <div id="full-list" class="list-container"></div>
         </div>
     </div>
 
     <div id="result-ui" class="hidden">
-        <button class="back-btn" onclick="goBack()">← 返回搜尋</button>
+        <button class="back-btn" onclick="toggleView(false)">← 返回搜尋列表</button>
         <div class="card">
-            <h2 id="selected-item-name">道具名稱</h2>
+            <h2 id="display-title" style="color: #1a73e8; border-bottom: 2px solid #1a73e8; padding-bottom: 10px;"></h2>
             <table>
                 <thead>
                     <tr>
                         <th>商人地點 / 名稱</th>
-                        <th>價格 (由高到低)</th>
+                        <th style="width: 150px;">價格 (高 → 低)</th>
                     </tr>
                 </thead>
-                <tbody id="price-table-body"></tbody>
+                <tbody id="result-table-body"></tbody>
             </table>
         </div>
     </div>
 
     <script>
-        let csvData = [];
-        let headers = [];
+        let rawData = [];
+        let nameKey = ""; // 自動偵測的道具名稱欄位名稱
 
-        // 1. 讀取並解析 CSV (自動偵測編碼)
-        async function loadCSV() {
+        async function init() {
             try {
-                const response = await fetch('item_price.csv');
-                const arrayBuffer = await response.arrayBuffer();
+                const resp = await fetch('item_price.csv');
+                const buffer = await resp.arrayBuffer();
                 
-                // 偵測編碼
-                const uint8Array = new Uint8Array(arrayBuffer);
-                const detected = jschardet.detect(uint8Array);
-                const encoding = detected.encoding || 'UTF-8';
+                // 強制偵測編碼
+                const uint8 = new Uint8Array(buffer);
+                const result = jschardet.detect(uint8);
+                const encoding = result.encoding || 'UTF-8';
 
-                // 解碼文字
                 const decoder = new TextDecoder(encoding);
-                const csvString = decoder.decode(uint8Array);
+                const text = decoder.decode(uint8);
 
-                Papa.parse(csvString, {
+                Papa.parse(text, {
                     header: true,
                     skipEmptyLines: true,
                     complete: function(results) {
-                        csvData = results.data;
-                        headers = results.meta.fields;
-                        initUI();
+                        if (results.data.length > 0) {
+                            rawData = results.data;
+                            // 修正欄位名稱可能含有的 BOM 或空白
+                            const firstRow = results.meta.fields;
+                            nameKey = firstRow.find(f => f.includes("道具名稱")) || firstRow[1];
+                            
+                            setupUI();
+                        }
                     }
                 });
-            } catch (error) {
-                console.error("CSV 加載失敗:", error);
-                document.getElementById('loading').innerText = "無法載入 item_price.csv，請確認檔案是否存在。";
+            } catch (e) {
+                document.getElementById('status-msg').innerText = "讀取失敗，請確認 item_price.csv 是否在相同目錄。";
             }
         }
 
-        // 2. 初始化介面
-        function initUI() {
-            document.getElementById('loading').classList.add('hidden');
+        function setupUI() {
+            document.getElementById('status-msg').style.display = 'none';
             document.getElementById('main-ui').classList.remove('hidden');
-            renderAllItems();
 
-            // 關鍵字搜尋事件
-            document.getElementById('keyword-search').addEventListener('input', function(e) {
-                const term = e.target.value.trim().toLowerCase();
-                const container = document.getElementById('search-results-list');
-                
-                if (term.length === 0) {
+            renderItems(rawData, 'full-list');
+
+            document.getElementById('keyword-input').addEventListener('input', (e) => {
+                const val = e.target.value.trim().toLowerCase();
+                const container = document.getElementById('search-list');
+                if (!val) {
                     container.classList.add('hidden');
                     return;
                 }
-
-                const filtered = csvData.filter(row => 
-                    row["道具名稱"] && row["道具名稱"].toLowerCase().includes(term)
-                );
-
-                renderList(filtered, 'search-results-list');
+                const filtered = rawData.filter(r => String(r[nameKey]).toLowerCase().includes(val));
+                renderItems(filtered, 'search-list');
                 container.classList.remove('hidden');
             });
         }
 
-        // 顯示所有道具
-        function renderAllItems() {
-            renderList(csvData, 'all-items-list');
-        }
-
-        // 通用列表渲染
-        function renderList(data, containerId) {
-            const container = document.getElementById(containerId);
-            container.innerHTML = '';
+        function renderItems(data, containerId) {
+            const el = document.getElementById(containerId);
+            el.innerHTML = '';
             data.forEach(item => {
+                const name = item[nameKey];
+                if (!name || name === "undefined") return;
+
                 const btn = document.createElement('button');
                 btn.className = 'item-btn';
-                btn.innerText = item["道具名稱"];
-                btn.onclick = () => showPrices(item);
-                container.appendChild(btn);
+                btn.innerText = name;
+                btn.onclick = () => showDetail(item);
+                el.appendChild(btn);
             });
         }
 
-        // 3. 顯示價格結果
-        function showPrices(itemRow) {
-            const itemName = itemRow["道具名稱"];
-            document.getElementById('selected-item-name').innerText = itemName;
-            const tbody = document.getElementById('price-table-body');
+        function showDetail(row) {
+            const title = row[nameKey];
+            document.getElementById('display-title').innerText = title;
+            const tbody = document.getElementById('result-table-body');
             tbody.innerHTML = '';
 
-            let priceList = [];
-
-            // 遍歷所有標題，找出非名稱與編號的商人列
-            headers.forEach(header => {
-                if (header !== "編號" && header !== "道具名稱") {
-                    const price = parseInt(itemRow[header]);
-                    // 排除價格為 0、空值或非數字
-                    if (price && price > 0) {
-                        priceList.push({ name: header, price: price });
+            let prices = [];
+            Object.keys(row).forEach(key => {
+                // 排除名稱和編號欄位
+                if (key !== nameKey && !key.includes("編號")) {
+                    const val = parseInt(String(row[key]).replace(/,/g, ''));
+                    if (!isNaN(val) && val > 0) {
+                        prices.push({ npc: key, price: val });
                     }
                 }
             });
 
-            // 由大到小排序
-            priceList.sort((a, b) => b.price - a.price);
+            // 排序：大到小
+            prices.sort((a, b) => b.price - a.price);
 
-            if (priceList.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;">暫無可用的價格數據</td></tr>';
+            if (prices.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:30px; color:#999;">此道具無有效的販售價格數據</td></tr>';
             } else {
-                priceList.forEach(p => {
+                prices.forEach(p => {
                     const tr = document.createElement('tr');
-                    tr.innerHTML = `<td>${p.name}</td><td class="price-text">${p.price.toLocaleString()}</td>`;
+                    tr.innerHTML = `
+                        <td class="npc-name">${p.npc}</td>
+                        <td class="price-val">${p.price.toLocaleString()}</td>
+                    `;
                     tbody.appendChild(tr);
                 });
             }
 
-            // 切換 UI
-            document.getElementById('main-ui').classList.add('hidden');
-            document.getElementById('result-ui').classList.remove('hidden');
-            window.scrollTo(0, 0);
+            toggleView(true);
         }
 
-        function goBack() {
-            document.getElementById('result-ui').classList.add('hidden');
-            document.getElementById('main-ui').classList.remove('hidden');
+        function toggleView(showResult) {
+            if (showResult) {
+                document.getElementById('main-ui').classList.add('hidden');
+                document.getElementById('result-ui').classList.remove('hidden');
+                window.scrollTo(0, 0);
+            } else {
+                document.getElementById('result-ui').classList.add('hidden');
+                document.getElementById('main-ui').classList.remove('hidden');
+            }
         }
 
-        // 啟動
-        loadCSV();
+        init();
     </script>
 </body>
 </html>
