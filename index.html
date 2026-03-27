@@ -3,249 +3,190 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>商店道具價格查詢</title>
+    <title>道具價格快速查詢系統</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jschardet/3.0.0/jschardet.min.js"></script>
     <style>
-        /* 繼承 reference.html 的專業風格 */
-        #lineage-tool-wrapper { margin: 30px auto; max-width: 1000px; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; box-sizing: border-box; color: #1e293b; line-height: 1.6; padding: 24px; }
-        #lineage-tool-wrapper * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f4f7f6; }
+        h1 { text-align: center; color: #2c3e50; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .hidden { display: none; }
         
-        /* 頂部標題列 */
-        .lt-header { display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 20px 30px; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 24px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-        .lt-header-title { display: flex; align-items: center; gap: 12px; font-size: 1.5rem; font-weight: 800; color: #0f172a; }
-        .lt-badge { padding: 6px 12px; font-size: 0.875rem; font-weight: 700; background-color: #eef2ff; color: #4f46e5; border-radius: 8px; }
+        /* 搜尋樣式 */
+        .search-box { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 4px; box-sizing: border-box; font-size: 16px; margin-bottom: 10px; }
+        .list-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; max-height: 400px; overflow-y: auto; border: 1px solid #eee; padding: 10px; }
+        .item-btn { padding: 8px; background: #e9ecef; border: none; border-radius: 4px; cursor: pointer; text-align: center; font-size: 14px; transition: 0.2s; }
+        .item-btn:hover { background: #dee2e6; color: #007bff; }
 
-        /* 搜尋面板 */
-        .lt-panel-top { background: #fff; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden; margin-bottom: 24px; }
-        .lt-search-box { padding: 24px; border-bottom: 1px solid #f1f5f9; }
-        .lt-search-input-wrap { position: relative; }
-        .lt-search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; color: #94a3b8; pointer-events: none; }
-        .lt-search-input { width: 100%; padding: 15px 20px 15px 50px; border: 2px solid #cbd5e1; border-radius: 12px; font-size: 1.1rem; font-weight: 600; outline: none; transition: 0.2s; background: #f8fafc; margin: 0; }
-        .lt-search-input:focus { border-color: #6366f1; background-color: #fff; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1); }
-
-        /* 商品羅列清單 (Grid 風格) */
-        .lt-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; max-height: 350px; overflow-y: auto; padding: 20px; background: #f8fafc; border-top: 1px solid #eee; }
-        .lt-list-item { padding: 12px 15px; border-radius: 10px; border: 1px solid #e2e8f0; background: #fff; font-weight: 600; cursor: pointer; transition: 0.2s; text-align: left; font-size: 0.95rem; display: flex; justify-content: space-between; align-items: center; color: #1e293b; text-decoration: none; }
-        .lt-list-item:hover { border-color: #6366f1; transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.05); background-color: #fff; }
-        .lt-list-item.active { background-color: #eef2ff; border-color: #6366f1; color: #4338ca; }
+        /* 結果表格樣式 */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
+        th, td { border: 1px solid #dee2e6; padding: 12px; text-align: left; }
+        th { background-color: #007bff; color: white; cursor: pointer; }
+        tr:nth-child(even) { background-color: #f8f9fa; }
+        .price-text { font-weight: bold; color: #d9534f; }
+        .back-btn { display: inline-block; margin-bottom: 15px; padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; }
         
-        /* 詳細資訊面板 */
-        .lt-panel-bottom { background: #fff; border-radius: 16px; border: 1px solid #e2e8f0; padding: 30px; min-height: 200px; }
-        .lt-empty-state { text-align: center; color: #64748b; padding: 40px 0; }
-        .lt-item-title { font-size: 2rem; font-weight: 800; color: #0f172a; margin: 0 0 20px 0; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; }
-        
-        /* 價格顯示卡片 */
-        .lt-price-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
-        .lt-price-card { background: linear-gradient(135deg, #fef2f2 0%, #fff7ed 100%); border: 1px solid #fecaca; border-radius: 15px; padding: 20px; }
-        .lt-price-label { font-size: 0.9rem; font-weight: 700; color: #b91c1c; margin-bottom: 5px; }
-        .lt-price-val { font-size: 1.8rem; font-weight: 800; color: #dc2626; }
-        .lt-price-unit { font-size: 1rem; color: #f87171; margin-left: 5px; font-weight: 700; }
-
-        /* 滾動條樣式 */
-        .lt-list::-webkit-scrollbar { width: 8px; }
-        .lt-list::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
-        .lt-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .lt-list::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-        @media (max-width: 640px) {
-            .lt-list { grid-template-columns: repeat(1, 1fr); padding: 15px; }
-            .lt-header { flex-direction: column; gap: 10px; align-items: flex-start; padding: 15px 20px; }
-            .lt-header-title { font-size: 1.2rem; }
-            .lt-item-title { font-size: 1.5rem; }
-            #lineage-tool-wrapper { padding: 15px; margin: 10px; }
-        }
+        .loading { text-align: center; color: #666; }
     </style>
 </head>
 <body>
 
-<div id="lineage-tool-wrapper">
-    <div class="lt-header">
-        <div class="lt-header-title">
-            <svg width="32" height="32" fill="none" stroke="#4f46e5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            <span>商店道具價格搜尋</span>
-        </div>
-        <span class="lt-badge">Lineage Classic</span>
-    </div>
+    <h1>道具價格查詢系統</h1>
 
-    <div class="lt-panel-top">
-        <div class="lt-search-box">
-            <div class="lt-search-input-wrap">
-                <svg class="lt-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                <input type="text" id="lt-search" class="lt-search-input" placeholder="輸入道具 ID 或名稱搜尋..." autocomplete="off">
-            </div>
-        </div>
-        <div id="lt-list" class="lt-list">
-            </div>
-    </div>
+    <div id="loading" class="loading">正在讀取數據...</div>
 
-    <div id="lt-detail" class="lt-panel-bottom">
-        <div class="lt-empty-state">
-            <svg width="64" height="64" fill="none" stroke="#cbd5e1" viewBox="0 0 24 24" style="margin-bottom:15px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-            <p>請從上方列表中選擇道具，或使用搜尋功能</p>
+    <div id="main-ui" class="hidden">
+        <div class="card">
+            <h3>方法一：關鍵字搜尋</h3>
+            <input type="text" id="keyword-search" class="search-box" placeholder="輸入道具名稱關鍵字...">
+            <div id="search-results-list" class="list-container hidden"></div>
+        </div>
+
+        <div class="card" id="all-items-section">
+            <h3>方法二：瀏覽所有道具</h3>
+            <div id="all-items-list" class="list-container"></div>
         </div>
     </div>
-</div>
 
-<script>
-    // 原始所有資料
-    let allItemsData = [];
-    // 目前顯示在列表中的資料 (排序/過濾後)
-    let currentDisplayedData = [];
-    
-    const searchInput = document.getElementById('lt-search');
-    const itemListEl = document.getElementById('lt-list');
-    const detailEl = document.getElementById('lt-detail');
+    <div id="result-ui" class="hidden">
+        <button class="back-btn" onclick="goBack()">← 返回搜尋</button>
+        <div class="card">
+            <h2 id="selected-item-name">道具名稱</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>商人地點 / 名稱</th>
+                        <th>價格 (由高到低)</th>
+                    </tr>
+                </thead>
+                <tbody id="price-table-body"></tbody>
+            </table>
+        </div>
+    </div>
 
-    // 1. 讀取 CSV 資料
-    function init() {
-        // 使用您上傳的正確檔名 item_price.csv
-        Papa.parse("item_price.csv", {
-            download: true,
-            header: true,
-            skipEmptyLines: true,
-            complete: function(results) {
-                // 解析完成後的處理
-                processData(results.data);
-            },
-            error: function(err) {
-                detailEl.innerHTML = `<div class="lt-empty-state" style="color:red;">
-                    <p>讀取資料失敗。</p>
-                    <p style="font-size:0.8rem;">請確保 item_price.csv 與此網頁在同一資料夾，且透過伺服器(如 GitHub Pages)開啟。</p>
-                </div>`;
-                console.error("CSV Parsing Error:", err);
+    <script>
+        let csvData = [];
+        let headers = [];
+
+        // 1. 讀取並解析 CSV (自動偵測編碼)
+        async function loadCSV() {
+            try {
+                const response = await fetch('item_price.csv');
+                const arrayBuffer = await response.arrayBuffer();
+                
+                // 偵測編碼
+                const uint8Array = new Uint8Array(arrayBuffer);
+                const detected = jschardet.detect(uint8Array);
+                const encoding = detected.encoding || 'UTF-8';
+
+                // 解碼文字
+                const decoder = new TextDecoder(encoding);
+                const csvString = decoder.decode(uint8Array);
+
+                Papa.parse(csvString, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        csvData = results.data;
+                        headers = results.meta.fields;
+                        initUI();
+                    }
+                });
+            } catch (error) {
+                console.error("CSV 加載失敗:", error);
+                document.getElementById('loading').innerText = "無法載入 item_price.csv，請確認檔案是否存在。";
             }
-        });
-    }
-
-    // 2. 資料預處理：過濾 0 元/空值，並按價格由大到小排序
-    function processData(rawData) {
-        // 定義 CSV 欄位名稱 (根據您提供的 CSV 格式)
-        const ID_FIELD = 'item_id';
-        const NAME_FIELD = 'item_name';
-        const PRICE_FIELD = '商店價格';
-
-        allItemsData = rawData.filter(item => {
-            const price = item[PRICE_FIELD];
-            // 排除價格為空、undefined、NaN 或 0 的資料
-            return price && price.trim() !== '' && parseFloat(price) !== 0;
-        });
-
-        // 預設按價格由大到小排序
-        allItemsData.sort((a, b) => {
-            return parseFloat(b[PRICE_FIELD]) - parseFloat(a[PRICE_FIELD]);
-        });
-
-        // 初始顯示所有有效資料
-        currentDisplayedData = allItemsData;
-        renderList(currentDisplayedData);
-    }
-
-    // 3. 渲染道具清單 (羅列風格) - 修正顯示名稱問題
-    function renderList(data) {
-        if (data.length === 0) {
-            itemListEl.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:40px; color:#94a3b8; background:#fff; border-radius:10px;">找不到匹配且有價格的道具</div>';
-            return;
         }
 
-        const NAME_FIELD = 'item_name';
-        const PRICE_FIELD = '商店價格';
+        // 2. 初始化介面
+        function initUI() {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('main-ui').classList.remove('hidden');
+            renderAllItems();
 
-        itemListEl.innerHTML = data.map((item, index) => {
-            // 修正：強制讀取 item_name 欄位
-            const itemName = item[NAME_FIELD] || '未命名道具';
-            const itemPrice = parseFloat(item[PRICE_FIELD]).toLocaleString();
+            // 關鍵字搜尋事件
+            document.getElementById('keyword-search').addEventListener('input', function(e) {
+                const term = e.target.value.trim().toLowerCase();
+                const container = document.getElementById('search-results-list');
+                
+                if (term.length === 0) {
+                    container.classList.add('hidden');
+                    return;
+                }
 
-            return `<div class="lt-list-item" onclick="showDetail(${index})">
-                        <span class="lt-item-name-text">${itemName}</span>
-                        <span style="color:#94a3b8; font-size:0.8rem; font-weight:400;">${itemPrice} Dn</span>
-                    </div>`;
-        }).join('');
-        
-        // 每次重新渲染列表，重置詳細區域
-        resetDetail();
-    }
+                const filtered = csvData.filter(row => 
+                    row["道具名稱"] && row["道具名稱"].toLowerCase().includes(term)
+                );
 
-    // 4. 搜尋功能 (支援 ID 與 名稱)
-    searchInput.addEventListener('input', function(e) {
-        const term = e.target.value.toLowerCase().trim();
-        
-        const ID_FIELD = 'item_id';
-        const NAME_FIELD = 'item_name';
-
-        if (term === '') {
-            currentDisplayedData = allItemsData;
-        } else {
-            currentDisplayedData = allItemsData.filter(item => {
-                const idMatch = String(item[ID_FIELD]).toLowerCase().includes(term);
-                const nameMatch = String(item[NAME_FIELD]).toLowerCase().includes(term);
-                return idMatch || nameMatch;
+                renderList(filtered, 'search-results-list');
+                container.classList.remove('hidden');
             });
         }
-        
-        // 搜尋結果依然維持預設的價格排序（因為 allItemsData 已經排過序了）
-        renderList(currentDisplayedData);
-    });
 
-    // 5. 顯示詳細資訊
-    window.showDetail = function(index) {
-        // 從「目前顯示的資料集」中抓取資料，確保點擊索引正確
-        const item = currentDisplayedData[index];
-        if (!item) return;
+        // 顯示所有道具
+        function renderAllItems() {
+            renderList(csvData, 'all-items-list');
+        }
 
-        const NAME_FIELD = 'item_name';
-        const PRICE_FIELD = '商店價格';
-        
-        const itemName = item[NAME_FIELD] || '未命名道具';
-        const fields = Object.keys(item);
+        // 通用列表渲染
+        function renderList(data, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            data.forEach(item => {
+                const btn = document.createElement('button');
+                btn.className = 'item-btn';
+                btn.innerText = item["道具名稱"];
+                btn.onclick = () => showPrices(item);
+                container.appendChild(btn);
+            });
+        }
 
-        // 處理 active 狀態
-        const items = document.querySelectorAll('.lt-list-item');
-        items.forEach(el => el.classList.remove('active'));
-        if(items[index]) items[index].classList.add('active');
-        
-        let html = `<div class="fade-in">
-            <h2 class="lt-item-title">${itemName}</h2>
-            <div class="lt-price-grid">`;
-        
-        // 顯示除了名稱以外的所有欄位卡片
-        fields.forEach(field => {
-            if (field === NAME_FIELD) return; // 不重複顯示名稱
-            
-            let value = item[field];
-            let unit = '';
-            
-            // 針對價格欄位進行格式化
-            if (field === PRICE_FIELD) {
-                value = parseFloat(value).toLocaleString();
-                unit = '<span class="lt-price-unit">阿德納</span>';
+        // 3. 顯示價格結果
+        function showPrices(itemRow) {
+            const itemName = itemRow["道具名稱"];
+            document.getElementById('selected-item-name').innerText = itemName;
+            const tbody = document.getElementById('price-table-body');
+            tbody.innerHTML = '';
+
+            let priceList = [];
+
+            // 遍歷所有標題，找出非名稱與編號的商人列
+            headers.forEach(header => {
+                if (header !== "編號" && header !== "道具名稱") {
+                    const price = parseInt(itemRow[header]);
+                    // 排除價格為 0、空值或非數字
+                    if (price && price > 0) {
+                        priceList.push({ name: header, price: price });
+                    }
+                }
+            });
+
+            // 由大到小排序
+            priceList.sort((a, b) => b.price - a.price);
+
+            if (priceList.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2" style="text-align:center;">暫無可用的價格數據</td></tr>';
+            } else {
+                priceList.forEach(p => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${p.name}</td><td class="price-text">${p.price.toLocaleString()}</td>`;
+                    tbody.appendChild(tr);
+                });
             }
 
-            html += `
-                <div class="lt-price-card">
-                    <div class="lt-price-label">${field}</div>
-                    <div class="lt-price-val">${value}${unit}</div>
-                </div>`;
-        });
-        
-        html += `</div></div>`;
-        detailEl.innerHTML = html;
-        
-        // 手機端點擊後捲動到下方詳細區
-        if(window.innerWidth <= 640) {
-            detailEl.scrollIntoView({ behavior: 'smooth' });
+            // 切換 UI
+            document.getElementById('main-ui').classList.add('hidden');
+            document.getElementById('result-ui').classList.remove('hidden');
+            window.scrollTo(0, 0);
         }
-    };
-    
-    function resetDetail() {
-        detailEl.innerHTML = `<div class="lt-empty-state">
-            <svg width="64" height="64" fill="none" stroke="#cbd5e1" viewBox="0 0 24 24" style="margin-bottom:15px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-            <p>請從上方列表中選擇道具，或使用搜尋功能</p>
-        </div>`;
-    }
 
-    // 初始化程式
-    window.onload = init;
-</script>
+        function goBack() {
+            document.getElementById('result-ui').classList.add('hidden');
+            document.getElementById('main-ui').classList.remove('hidden');
+        }
 
+        // 啟動
+        loadCSV();
+    </script>
 </body>
 </html>
