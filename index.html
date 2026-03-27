@@ -39,8 +39,8 @@
     
     <div class="toolbar">
         <span style="font-size: 12px; color: #666;">如果看到亂碼，請嘗試：</span>
-        <button class="encoding-btn" onclick="reloadWithEncoding('big5')">切換 Big5 (ANSI)</button>
         <button class="encoding-btn" onclick="reloadWithEncoding('utf-8')">切換 UTF-8</button>
+        <button class="encoding-btn" onclick="reloadWithEncoding('big5')">切換 Big5 (ANSI)</button>
     </div>
 
     <div id="view-main">
@@ -77,7 +77,7 @@
 
 <script>
     let db = [];
-    let currentEncoding = 'big5';
+    let currentEncoding = 'utf-8';
 
     // 1. 讀取 CSV
     async function loadData(encoding) {
