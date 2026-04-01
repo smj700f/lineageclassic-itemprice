@@ -82,7 +82,12 @@
     // 1. 讀取 CSV
     async function loadData(encoding) {
         try {
-            const response = await fetch('item_price.csv');
+            // 加入時間戳記避免緩存問題
+            const cacheBuster = new Date().getTime();
+            const response = await fetch(`item_price.csv?t=${cacheBuster}`);
+            
+            if (!response.ok) throw new Error('Network response was not ok');
+            
             const buffer = await response.arrayBuffer();
             const decoder = new TextDecoder(encoding);
             const text = decoder.decode(buffer);
@@ -96,7 +101,8 @@
                 }
             });
         } catch (err) {
-            alert("讀取檔案失敗，請確保 item_price.csv 存在。");
+            console.error(err);
+            alert("讀取檔案失敗，請檢查網路或檔案是否存在。");
         }
     }
 
